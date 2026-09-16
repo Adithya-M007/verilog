@@ -1,71 +1,39 @@
-# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
-# SPDX-License-Identifier: Apache-2.0
+`default_nettype none
+`timescale 1ns / 1ps
 
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles
+module tb;
 
+  // Dump the signals to an FST file
+  initial begin
+    $dumpfile("tb.fst");
+    $dumpvars(0, tb);
+    #1;
+  end
 
-@cocotb.test()
-async def test_project(dut):
-    dut._log.info("Start")
+  // Inputs
+  reg clk;
+  reg rst_n;
+  reg ena;
+  reg [7:0] ui_in;
+  reg [7:0] uio_in;
 
-    # Set the clock period to 10 us (100 KHz)
-    clock = Clock(dut.clk, 10, unit="us")
-    cocotb.start_soon(clock.start())
+  // Outputs
+  wire [7:0] uo_out;
+  wire [7:0] uio_out;
+  wire [7:0] uio_oe;
 
-    # Reset
-    dut._log.info("Reset")
-    dut.ena.value = 1
-    dut.ui_in.value = 0
-    dut.uio_in.value = 0
-    dut.rst_n.value = 0
+  // Instantiate the actual Tiny Tapeout design
+  tt_um_fulladder user_project (
 
-    await ClockCycles(dut.clk, 10)
+      .ui_in  (ui_in),
+      .uo_out (uo_out),
+      .uio_in (uio_in),
+      .uio_out(uio_out),
+      .uio_oe (uio_oe),
+      .ena    (ena),
+      .clk    (clk),
+      .rst_n  (rst_n)
 
-    dut.rst_n.value = 1
+  );
 
-    dut._log.info("Testing Full Adder")
-
-    # Full adder truth table
-    test_cases = [
-        (0, 0, 0, 0, 0),
-        (0, 0, 1, 1, 0),
-        (0, 1, 0, 1, 0),
-        (0, 1, 1, 0, 1),
-        (1, 0, 0, 1, 0),
-        (1, 0, 1, 0, 1),
-        (1, 1, 0, 0, 1),
-        (1, 1, 1, 1, 1),
-    ]
-
-    for A, B, Cin, expected_sum, expected_cout in test_cases:
-
-        # A -> ui_in[0]
-        # B -> ui_in[1]
-        # Cin -> ui_in[2]
-        dut.ui_in.value = A | (B << 1) | (Cin << 2)
-
-        await ClockCycles(dut.clk, 1)
-
-        # uo_out[0] = Sum
-        # uo_out[1] = Cout
-        actual_sum = dut.uo_out.value.integer & 1
-        actual_cout = (dut.uo_out.value.integer >> 1) & 1
-
-        assert actual_sum == expected_sum, (
-            f"Sum error: A={A}, B={B}, Cin={Cin}, "
-            f"Expected={expected_sum}, Got={actual_sum}"
-        )
-
-        assert actual_cout == expected_cout, (
-            f"Cout error: A={A}, B={B}, Cin={Cin}, "
-            f"Expected={expected_cout}, Got={actual_cout}"
-        )
-
-        dut._log.info(
-            f"A={A} B={B} Cin={Cin} -> "
-            f"Sum={actual_sum} Cout={actual_cout}"
-        )
-
-    dut._log.info("All Full Adder tests passed!")
+endmodule
