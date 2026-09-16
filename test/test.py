@@ -20,21 +20,52 @@ async def test_project(dut):
     dut.ui_in.value = 0
     dut.uio_in.value = 0
     dut.rst_n.value = 0
+
     await ClockCycles(dut.clk, 10)
+
     dut.rst_n.value = 1
 
-    dut._log.info("Test project behavior")
+    dut._log.info("Testing Full Adder")
 
-    # Set the input values you want to test
-    dut.ui_in.value = 20
-    dut.uio_in.value = 30
+    # Full adder truth table
+    test_cases = [
+        (0, 0, 0, 0, 0),
+        (0, 0, 1, 1, 0),
+        (0, 1, 0, 1, 0),
+        (0, 1, 1, 0, 1),
+        (1, 0, 0, 1, 0),
+        (1, 0, 1, 0, 1),
+        (1, 1, 0, 0, 1),
+        (1, 1, 1, 1, 1),
+    ]
 
-    # Wait for one clock cycle to see the output values
-    await ClockCycles(dut.clk, 1)
+    for A, B, Cin, expected_sum, expected_cout in test_cases:
 
-    # The following assersion is just an example of how to check the output values.
-    # Change it to match the actual expected output of your module:
-    assert dut.uo_out.value == 50
+        # A -> ui_in[0]
+        # B -> ui_in[1]
+        # Cin -> ui_in[2]
+        dut.ui_in.value = A | (B << 1) | (Cin << 2)
 
-    # Keep testing the module by changing the input values, waiting for
-    # one or more clock cycles, and asserting the expected output values.
+        await ClockCycles(dut.clk, 1)
+
+        # uo_out[0] = Sum
+        # uo_out[1] = Cout
+        actual_sum = dut.uo_out.value.integer & 1
+        actual_cout = (dut.uo_out.value.integer >> 1) & 1
+
+        assert actual_sum == expected_sum, (
+            f"Sum error: A={A}, B={B}, Cin={Cin}, "
+            f"Expected={expected_sum}, Got={actual_sum}"
+        )
+
+        assert actual_cout == expected_cout, (
+            f"Cout error: A={A}, B={B}, Cin={Cin}, "
+            f"Expected={expected_cout}, Got={actual_cout}"
+        )
+
+        dut._log.info(
+            f"A={A} B={B} Cin={Cin} -> "
+            f"Sum={actual_sum} Cout={actual_cout}"
+        )
+
+    dut._log.info("All Full Adder tests passed!")
